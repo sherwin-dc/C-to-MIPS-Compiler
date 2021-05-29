@@ -1,0 +1,7 @@
+build/*
+bin/*
+env/*
+src/.antlr/*
+java/*
+run/*
+*.code-workspace

@@ -1,0 +1,23 @@
+{
+  switch (3+4) {
+    100+100;
+    case 7:
+      1+1;
+      break;
+
+    default:
+        8;
+        break;
+    /**
+    * comment
+    */
+    case 12://comment
+      2+2; 
+      break;
+
+    case 10+20:
+      0;
+      break;
+    
+  }
+}

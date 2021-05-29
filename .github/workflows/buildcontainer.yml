@@ -1,0 +1,16 @@
+name: Create Docker Container
+
+on: workflow_dispatch
+
+
+jobs:
+# https://github.com/dtinth/github-actions-docker-layer-caching-poc/blob/master/.github/workflows/dockerimage.yml
+  build_container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: echo ${{ secrets.GITHUB_TOKEN }} | docker login docker.pkg.github.com -u $GITHUB_ACTOR --password-stdin
+      - run: docker pull docker.pkg.github.com/sherwin-dc/c-to-mips-compiler/eie-compiler-cw || true
+      - run: docker build . -t thing --cache-from=docker.pkg.github.com/sherwin-dc/c-to-mips-compiler/eie-compiler-cw
+      - run: docker tag thing docker.pkg.github.com/sherwin-dc/c-to-mips-compiler/eie-compiler-cw && docker push docker.pkg.github.com/sherwin-dc/c-to-mips-compiler/eie-compiler-cw || true
+

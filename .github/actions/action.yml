@@ -1,0 +1,18 @@
+# action.yml
+name: 'Run Tests'
+inputs:
+  test-path:  # id of input
+    description: 'Path of folder'
+    required: true
+    default: 'null'
+  test-script:  # id of input
+    description: 'Executable'
+    required: true
+    default: 'null'
+
+runs:
+  using: 'docker'
+  image: 'docker.pkg.github.com/sherwin-dc/c-to-mips-compiler/eie-compiler-cw'
+  args:
+    - ${{ inputs.test-path }}
+    - ${{ inputs.test-script }}

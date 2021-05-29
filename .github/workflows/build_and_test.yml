@@ -1,0 +1,145 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+
+jobs:
+  # pull-docker-image:
+
+  #   runs-on: ubuntu-latest
+
+  #   steps:
+  #   - run: echo ${{ secrets.GITHUB_TOKEN }} | docker login docker.pkg.github.com -u $GITHUB_ACTOR --password-stdin
+  #   - run: docker pull docker.pkg.github.com/langproc/langproc-2020-lab-swd18/eie-compiler-lab
+  #   - run: docker images
+  #     name: Pull Docker image
+
+  test-working-cases:
+    # needs: pull-docker-image
+    runs-on: ubuntu-latest
+
+    steps:
+    - run: echo ${{ secrets.GITHUB_TOKEN }} | docker login docker.pkg.github.com -u $GITHUB_ACTOR --password-stdin
+      name: Pull docker image
+    - run: docker pull docker.pkg.github.com/sherwin-dc/c-to-mips-compiler/eie-compiler-cw
+    - uses: actions/checkout@v2
+      name: Checkout
+    # - run: docker images
+    - uses: ./.github/actions/
+      name: Run tests in Docker
+      with:
+        test-path: "."
+        test-script: "scripts/test_working.sh"
+
+
+  test-all-cases:
+    # needs: pull-docker-image
+    runs-on: ubuntu-latest
+
+    steps:
+    - run: echo ${{ secrets.GITHUB_TOKEN }} | docker login docker.pkg.github.com -u $GITHUB_ACTOR --password-stdin
+      name: Pull docker image
+    - run: docker pull docker.pkg.github.com/sherwin-dc/c-to-mips-compiler/eie-compiler-cw
+    - uses: actions/checkout@v2
+      name: Checkout
+    # - run: docker images
+    - uses: ./.github/actions/
+      name: Run tests in Docker
+      with:
+        test-path: "."
+        test-script: "scripts/test_all.sh"
+    - name: Extract branch name
+      shell: bash
+      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
+      id: extract_branch
+    
+    # Now prepare coverage badge
+    - name: Prepare environment
+      id: coverage
+      run: |
+        # Generates a GitHub Workflow output named `lines` with a coverage value
+        PASSED=$(cat passed.txt)
+        TESTED=$(cat tested.txt)
+        Percentage=$((100*PASSED/TESTED))
+        Message="${Percentage}%"" - ${PASSED} out of ${TESTED}"
+        echo "##[set-output name=lines;]${Message}"
+        # Output values to be used by other steps
+        echo "##[set-output name=path;]${BADGE_PATH}"
+        echo "##[set-output name=branch;]${BRANCH}"
+        echo "##[set-output name=percentage;]${Percentage}"
+      env:
+        BADGE_PATH: coverage-badge.svg
+        BRANCH: badges
+
+    
+
+    # Create the directory where badges will be saved, if needed
+    # - name: Create destination directory
+    #   env:
+    #     BADGE_PATH: ${{ steps.coverage.outputs.path }}
+    #   run: mkdir -p "${BADGE_PATH%/*}"
+
+    # Use the output from the `coverage` step
+    - name: Generate the badge SVG image
+      uses: emibcn/badge-action@v1
+      id: badge
+      with:
+        label: 'Test coverage'
+        status: ${{ steps.coverage.outputs.lines }}
+        color: ${{
+          steps.coverage.outputs.percentage > 90 && 'green'              ||
+          steps.coverage.outputs.percentage > 80 && 'yellow,green'       ||
+          steps.coverage.outputs.percentage > 70 && 'yellow'             ||
+          steps.coverage.outputs.percentage > 60 && 'orange,yellow'      ||
+          steps.coverage.outputs.percentage > 50 && 'orange'             ||
+          steps.coverage.outputs.percentage > 40 && 'red,orange'         ||
+          steps.coverage.outputs.percentage > 30 && 'red,red,orange'     ||
+          steps.coverage.outputs.percentage > 20 && 'red,red,red,orange' ||
+          'red' }}
+        path: ${{ steps.coverage.outputs.path }}
+
+    - name: Upload badge as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: badge
+        path: ${{ steps.coverage.outputs.path }}
+        if-no-files-found: error
+  
+  commit-badge:
+    needs: test-all-cases
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+      name: Checkout badges branch
+      with:
+        ref: badges
+
+    - name: Get badge
+      uses: actions/download-artifact@v2
+      with: 
+        name: badge
+
+    - name: Commit badge
+      continue-on-error: true
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add coverage-badge.svg
+        git commit -m "Add/Update badge"
+
+    - name: Push badge commit
+      uses: ad-m/github-push-action@master
+      if: ${{ success() }}
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        branch: badges
+
+
+
+
+
